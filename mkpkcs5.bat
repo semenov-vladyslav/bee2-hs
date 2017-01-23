@@ -17,7 +17,7 @@ stack exec -- bee2-exe pbkdf2 %iter% %salt% %pwd% --out-bin | stack exec -- bee2
 
 stack exec -- bee2-exe pbkdf2 %iter% %salt% %pwd% --of-bin kek.bin
 stack exec -- bee2-exe pkcs8-pri %pri% --of-bin pri.pkcs8
-stack exec -- bee2-exe kwp --if-bin pri.pkcs8 --if-bin kek.bin --of-bin epri.pkcs8.bin
+stack exec -- bee2-exe kwp --if-bin kek.bin --if-bin pri.pkcs8 --of-bin epri.pkcs8.bin
 stack exec -- bee2-exe pkcs8-encpri %iter% %salt% %pwd% %pri% --of-bin encpri.pkcs8
 
 :unwrap

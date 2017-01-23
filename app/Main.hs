@@ -77,7 +77,6 @@ in'bs _ (std,(hex:args)) = Right (return $ hex'bs $ hex, (std,args)) where
   hex'bs = fst . BS.decode . BS.pack . filter (/=' ')
 in'bs (_,True) ((True,stdout),[]) = return (BS.getContents, ((False,stdout),[]))
 in'bs (an,_) (_,[]) = Left ("no argument for " ++ an)
-in'bs (an,_) args = Left ("cannot parse " ++ an ++ ": " ++ show args)
 
 out'bs :: ArgDesc -> Args -> Either String (BS.ByteString -> IO (), Args)
 out'bs (an,_) ((stdin,stdout),(('-':'-':'o':'u':'t':'-':fmt):args))
@@ -148,11 +147,11 @@ lbs'fmt fmt = Left ("unknown format: " ++ fmt)
 run :: String -> Args -> Either String (IO ())
 
 run "kwp" args = do
-  ((get'key, get'kek, put'ekey), args') <- flip runStateT args $ do
-    get'key <- st $ in'bs ("key",False)
+  ((get'kek, get'key, put'ekey), args') <- flip runStateT args $ do
     get'kek <- st $ in'bs ("kek",True)
+    get'key <- st $ in'bs ("key",False)
     put'ekey <- st $ out'bs ("ekey",True)
-    return $ (get'key, get'kek, put'ekey)
+    return $ (get'kek, get'key, put'ekey)
 
   case args' of
     (_,[]) -> return $ do
@@ -245,6 +244,20 @@ run "pkcs8-pri" args = do
       put'pkcs pkcs
     _ -> Left "extra args provided"
 
+run "d-pkcs8-pri" args = do
+  ((get'pkcs, put'key), args') <- flip runStateT args $ do
+    get'pkcs <- st $ in'bs ("pkcs8",True)
+    put'key <- st $ out'bs ("key",True)
+    return $ (get'pkcs, put'key)
+
+  case args' of
+    (_,[]) -> return $ do
+      pkcs <- get'pkcs
+      case snd pkcs8'pri pkcs of
+        Just key -> put'key key
+        Nothing -> die "Failed to parse pkcs8."
+    _ -> Left "extra args provided"
+
 run "pkcs8-encwrap" args = do
   ((n, get'salt, get'ekey, put'pkcs), args') <- flip runStateT args $ do
     n <- st $ in'n ("iter",False)
@@ -301,6 +314,9 @@ run "lio" args = do
     (_,[]) -> return $ i >>= o
     _ -> Left "extra args provided"
 
+run cmd _ =
+  Left ("unknown cmd: " ++ cmd)
+
 usage = "Usage:\n"
       -- ++ "gen size:[32]|n key:[out-bin]|out-hex|<of-bin>\n"
       ++ "io i o\n"
@@ -310,8 +326,19 @@ usage = "Usage:\n"
       ++ "pkcs8-encpri iter salt pwd key pkcs8\n"
       ++ "d-pkcs8-encpri pwd pkcs8 key\n"
       ++ "pkcs8-pri key pkcs8\n"
+      ++ "d-pkcs8-pri pkcs8 key\n"
       ++ "pkcs8-encwrap iter salt ekey pkcs8\n"
       ++ "d-pkcs8-encwrap pkcs8 salt ekey\n"
+      ++ "\n"
+      ++ "Examples:\n"
+      ++ "io 42313934424143383041303846353342 --of-bin stdpwd\n"
+      ++ "io BE32971343FC9A48A02A885F194B09A1 --of-bin stdsalt\n"
+      ++ "pbkdf2 10000 --if-bin stdsalt B194BAC80A08F53B --of-bin stdkek\n"
+      ++ "io 1F66B5B84B7339674533F0329C74F21834281FED0732429E0C79235FC273E269 --of-bin stdpri\n"
+      ++ "kwp --if-bin stdkek --if-bin stdpri --of-bin stdepri\n"
+      ++ "uwp --if-bin stdkek --if-bin stdepri --of-bin stddepri\n"
+      ++ "pkcs8-encpri 10000 --if-bin stdsalt B194BAC80A08F53B --if-bin stdpri --of-bin pkcs8epri\n"
+      ++ "d-pkcs8-encpri B194BAC80A08F53B --if-bin pkcs8epri --of-bin pkcs8depri\n"
 
 main :: IO ()
 main = do

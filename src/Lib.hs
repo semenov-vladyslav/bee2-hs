@@ -6,7 +6,7 @@ import Control.Monad
   ( (>=>)
   )
 import qualified Data.ByteString as BS
-  ( ByteString
+  ( ByteString, length
   )
 import Bee2.Crypto.Belt
   ( SizeT, Password, Salt, Key, EKey, Header, Kek

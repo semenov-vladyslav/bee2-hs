@@ -124,8 +124,8 @@ beltPBKDF'bs pwd iter salt = theta where
     unsafeUseAsCStringLen' salt $ \psalt ssalt ->
     return $! beltPBKDF'cptr ptheta ppwd spwd citer psalt ssalt
 
-beltKWPWrap'bs :: Header -> Key -> Kek -> EKey
-beltKWPWrap'bs hdr ky kek
+beltKWPWrap'bs :: Header -> Kek -> Key -> EKey
+beltKWPWrap'bs hdr kek ky
   | BS.length hdr /= 16 = error "beltKWPWrap invalid hdr size (must be 16)"
   | BS.length kek /= 32 = error "beltKWPWrap invalid kek size (must be 32)"
   | BS.length ky < 16 = error "beltKWPWrap ky size too small (must not be less than 16)"
