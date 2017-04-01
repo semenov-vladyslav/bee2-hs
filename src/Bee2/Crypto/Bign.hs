@@ -2,71 +2,94 @@ module Bee2.Crypto.Bign
   ( 
   ) where
 
+import Bee2.Defs
 import Bee2.Foreign
 
-{-
+import Foreign.C.Types
+  ( CUInt(..), CSize(..)
+  )
+import Foreign.Ptr
+  ( FunPtr
+  )
+import Foreign.C.String
+  ( withCString
+  )
+
 -- bign_params is defined as a struct, but we don't need to directly access it's fields
 -- so this type stays abstract
 -- size: 4+64+64+64+64+64+8
-newtype BignParams = BignParams BS.ByteString
-type CBignParams = Ptr CUChar
+bignKeep = 4+64+64+64+64+64+8
+type PBignParams = Ptr () -- void * -> bign_param *
 
 foreign import ccall "bignStdParams"
   bignStdParams'cptr
-    :: CBignParams -- bign_params *params
-    -> Ptr CChar -- char const *name
+    :: PBignParams -- bign_params *params
+    -> PCChar -- char const *name
     -> ErrT -- err
 
 foreign import ccall "bignGenKeypair"
   bignGenKeypair'cptr
-    :: Ptr CUChar -- privkey
-    -> Ptr CUChar -- pubkey
-    -> CBignParams -- params
-    -> RngT -- rng
+    :: PCOctet -- privkey
+    -> POctet -- pubkey
+    -> PBignParams -- params
+    -> FunPtr RngT -- rng
     -> ErrT -- err
 
 foreign import ccall "bignSign"
   bignSign'cptr
-    :: Ptr CUChar -- sig
-    -> CBignParams -- params
-    -> Ptr CUChar -- oid_der
+    :: POctet -- sig
+    -> PBignParams -- params
+    -> PCOctet -- oid_der
     -> SizeT -- oid_len
-    -> Ptr CUChar -- hash
-    -> Ptr CUChar -- privkey
-    -> RngT -- rng
+    -> PCOctet -- hash
+    -> PCOctet -- privkey
+    -> FunPtr RngT -- rng
     -> Ptr () -- rng_state
     -> ErrT -- err
 
 foreign import ccall "bignSign2"
   bignSign2'cptr
-    :: Ptr CUChar -- sig
-    -> CBignParams -- params
-    -> Ptr CUChar -- oid_der
+    :: PCOctet -- sig
+    -> PBignParams -- params
+    -> PCOctet -- oid_der
     -> SizeT -- oid_len
-    -> Ptr CUChar -- hash
-    -> Ptr CUChar -- privkey
-    -> Ptr CUChar -- void const *t
+    -> PCOctet -- hash
+    -> PCOctet -- privkey
+    -> PCVoid -- void const *t
     -> SizeT -- t_len
     -> ErrT -- err
 
 foreign import ccall "bignVerify"
   bignVerify'cptr
-    :: CBignParams -- params
-    -> Ptr CUChar -- oid_der
+    :: PBignParams -- params
+    -> PCOctet -- oid_der
     -> SizeT -- oid_len
-    -> Ptr CUChar -- hash
-    -> Ptr CUChar -- sig
-    -> Ptr CUChar -- pubkey
+    -> PCOctet -- hash
+    -> PCOctet -- sig
+    -> PCOctet -- pubkey
     -> ErrT -- err
 
 
 
+bignStd128Oid = "1.2.112.0.2.0.34.101.45.3.1"
+bignStd192Oid = "1.2.112.0.2.0.34.101.45.3.2"
+bignStd256Oid = "1.2.112.0.2.0.34.101.45.3.3"
+
+type BignParams = Octets
 bignStdParams :: String -> BignParams
-bignStdParams 
+bignStdParams oid =
+  unsafeCreate' bignKeep $ \pparams ->
+  withCString oid $ \poid ->
+  return $! bignStdParams'cptr (castPtr pparams) poid
 
 bignStd128 :: BignParams
+bignStd128 = bignStdParams bignStd128Oid
 bignStd192 :: BignParams
+bignStd192 = bignStdParams bignStd192Oid
 bignStd256 :: BignParams
+bignStd256 = bignStdParams bignStd256Oid
+
+{-
 
 data BignWithHash = BignWithHash
   { bignParams :: BignParams
