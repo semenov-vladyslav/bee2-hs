@@ -1,5 +1,6 @@
 module Bee2.Crypto.Bash
   ( HashValue, bashHash'bs, test'bash
+  , bash256_oid, bash384_oid, bash512_oid
   ) where
 
 import Bee2.Defs
@@ -9,7 +10,7 @@ import Foreign.C.Types
   )
 
 import qualified Data.ByteString as BS
-  ( ByteString, length, take
+  ( ByteString, length, take, pack
   )
 import qualified Data.ByteString.Lazy as LBS
   ( ByteString, length, foldlChunks, take
@@ -55,6 +56,13 @@ foreign import ccall "bashHash"
 
 type BashState = Octets
 type HashValue = Octets
+
+bash256_oid = BS.pack $ 6: fromIntegral (length oid) : oid where
+  oid = [42,112,0,2,0,34,101,77,11]
+bash384_oid = BS.pack $ 6: fromIntegral (length oid) : oid where
+  oid = [42,112,0,2,0,34,101,77,12]
+bash512_oid = BS.pack $ 6: fromIntegral (length oid) : oid where
+  oid = [42,112,0,2,0,34,101,77,13]
 
 bashKeep :: Int
 bashKeep = fromIntegral bashKeep'cptr

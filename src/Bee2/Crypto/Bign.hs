@@ -1,6 +1,9 @@
 module Bee2.Crypto.Bign
   ( PrivKey, PubKey, HashValue, HashOid, SigValue
   , bignSign2'bs, bignVerify'bs
+
+  , testPri128, testPub128
+  , test'bign
   ) where
 
 import Bee2.Defs
@@ -8,6 +11,9 @@ import Bee2.Foreign
 
 import Data.Word
   ( Word(..)
+  )
+import qualified Data.ByteString as BS
+  ( replicate, pack
   )
 import Foreign.C.Types
   ( CUInt(..), CSize(..)
@@ -36,10 +42,11 @@ foreign import ccall "bignStdParams"
 
 foreign import ccall "bignGenKeypair"
   bignGenKeypair'cptr
-    :: PCOctet -- privkey
+    :: POctet -- privkey
     -> POctet -- pubkey
     -> PBignParams -- params
     -> FunPtr RngT -- rng
+    -> PVoid -- rng_state
     -> ErrT -- err
 
 foreign import ccall "bignSign"
@@ -108,6 +115,17 @@ type HashValue = Octets
 type HashOid = Octets
 type SigValue = Octets
 
+{-
+bignGenKeypair :: Word -> Octets -> Octets -> IO (PrivKey, PubKey)
+bignGenKeypair l key iv = 
+  | l /= 128 && l /= 192 && l /= 256 = error "bignSign2 invalid l (must be [128,192,256]"
+  | otherwise = 
+      unsafeCreate' (fromIntegral (l `div` 4)) $ \ppriv ->
+      unsafeCreate' (fromIntegral (2 * l `div` 4)) $ \ppub ->
+      unsafeUseAsCStringLen' (bignStd l) $ \pparams sparams ->
+      return $! bignGenKeypair'cptr ppriv ppub pparams rng rng_state
+-}
+
 bignSign2'bs :: Word -> PrivKey -> HashOid -> HashValue -> SigValue
 bignSign2'bs l priv oid hash
   | l /= 128 && l /= 192 && l /= 256 = error "bignSign2 invalid l (must be [128,192,256]"
@@ -141,6 +159,24 @@ bignVerify'bs l pub oid hash sig
         _ -> error $ "bignVerify failed: error " ++ show e
 
 
+testPri128 = hex2bs $ ""
+  ++ "1F66B5B84B7339674533F0329C74F218"
+  ++"34281FED0732429E0C79235FC273E269"
+testPub128 = hex2bs $ ""
+  ++ "BD1A5650179D79E03FCEE49D4C2BD5DD"
+  ++ "F54CE46D0CF11E4FF87BF7A890857FD0"
+  ++ "7AC6A60361E8C8173491686D461B2826"
+  ++ "190C2EDA5909054A9AB84D2AB9D99A90"
+
+test'bign = res where
+  l = 128
+  pri = testPri128
+  pub = testPub128
+      
+  hash_oid = hex2bs $ "0602aabb"
+  hash = BS.replicate 32 (fromIntegral 0xaa)
+  sig = bignSign2'bs l pri hash_oid hash
+  res = bignVerify'bs l pub hash_oid hash sig
 {-
 
 data BignWithHash = BignWithHash

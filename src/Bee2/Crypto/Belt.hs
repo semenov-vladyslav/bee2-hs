@@ -1,12 +1,16 @@
 module Bee2.Crypto.Belt
   ( Password, Salt, Key, EKey, Header, Kek
   , beltPBKDF'bs, beltKWPWrap'bs, beltKWPUnwrap'bs, hdr0
+  , hbelt_oid
   ) where
 
 import Bee2.Defs
 import Bee2.Foreign
 import Foreign.C.Types
   ( CUInt(..), CSize(..)
+  )
+import qualified Data.ByteString as BS
+  ( pack
   )
 
 foreign import ccall "beltPBKDF"
@@ -48,6 +52,9 @@ type Key = Octets -- >= 16
 type EKey = Octets -- sizeof key + 16
 type Header = Octets -- 16
 type Kek = Key -- 32
+
+hbelt_oid = BS.pack $ 6: fromIntegral (length oid) : oid where
+  oid = [42,112,0,2,0,34,101,31,81]
 
 
 beltPBKDF'bs :: Password -> Size -> Salt -> Kek
