@@ -69,7 +69,7 @@ type RngT
   = Ptr () -- void *buf
   -> SizeT -- size_t cout
   -> Ptr () -- void *state
-  -> () -- 
+  -> IO () -- IO signifies state modification
 
 
 
