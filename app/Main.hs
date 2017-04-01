@@ -1,7 +1,8 @@
 module Main where
 
+import Bee2.Defs
 import Bee2.Crypto.Belt
-import Lib
+import Bee2.PKCS8
 
 import Data.Functor.Identity
 import Control.Monad.IO.Class
@@ -51,7 +52,7 @@ type ArgDesc = (ArgName,ArgDefault)
 st :: (Args -> Either String (a, Args)) -> StateT Args (Either String) a
 st = StateT
 
-in'n :: ArgDesc -> Args -> Either String (Int, Args)
+in'n :: ArgDesc -> Args -> Either String (Size, Args)
 in'n (an,_) (std,arg:args) =
   case readsPrec 0 arg of
     [(n,"")] -> return (n, (std,args))

@@ -1,121 +1,56 @@
 module Bee2.Crypto.Belt
-  ( SizeT, Password, Salt, Key, EKey, Header, Kek
+  ( Password, Salt, Key, EKey, Header, Kek
   , beltPBKDF'bs, beltKWPWrap'bs, beltKWPUnwrap'bs, hdr0
-  , hex2bs, bs2hex
-  )where
+  ) where
 
-import Data.Char
-  ( isHexDigit
-  )
-
-import qualified Data.ByteString as BS
-  ( ByteString, length, replicate
-  )
-import qualified Data.ByteString.Internal as BS
-  ( unsafeCreate, unsafeCreateUptoN
-  )
-import qualified Data.ByteString.Unsafe as BS
-  ( unsafeUseAsCStringLen
-  )
-import qualified Data.ByteString.Char8 as BS
-  ( pack, unpack
-  )
-import qualified Data.ByteString.Base16 as BS
-  ( decode, encode
-  )
-
+import Bee2.Defs
+import Bee2.Foreign
 import Foreign.C.Types
-  ( CUInt(..), CUChar, CSize(..)
-  )
-import Foreign.Ptr
-  ( Ptr, castPtr
-  )
-import Foreign.ForeignPtr
-  ()
-import System.IO.Unsafe
-  ( unsafePerformIO
+  ( CUInt(..), CSize(..)
   )
 
-import Debug.Trace
-  ( trace
-  )
-
-
-type ErrT = CUInt
 foreign import ccall "beltPBKDF"
   beltPBKDF'cptr
-    :: Ptr CUChar -- theta [32]
-    -> Ptr CUChar -- pwd
-    -> CSize -- sizeof pwd
-    -> CSize -- iter
-    -> Ptr CUChar -- salt
-    -> CSize -- sizeof salt
-    -> CUInt -- err
+    :: POctet -- theta [32]
+    -> PCOctet -- pwd
+    -> SizeT -- sizeof pwd
+    -> SizeT -- iter
+    -> PCOctet -- salt
+    -> SizeT -- sizeof salt
+    -> ErrT -- err
 -- beltPBKDF'cptr = undefined
 
 -- bee2/crypto/belt.h 
 foreign import ccall "beltKWPWrap"
   beltKWPWrap'cptr 
-    :: Ptr CUChar -- eky [sizeof ky + 16]
-    -> Ptr CUChar -- ky
-    -> CSize -- sizeof ky >= 16
-    -> Ptr CUChar -- hdr [16]
-    -> Ptr CUChar -- kek [16,24,32]
-    -> CSize -- sizeof kek
-    -> CUInt -- err
+    :: POctet -- eky [sizeof ky + 16]
+    -> PCOctet -- ky
+    -> SizeT -- sizeof ky >= 16
+    -> PCOctet -- hdr [16]
+    -> PCOctet -- kek [16,24,32]
+    -> SizeT -- sizeof kek
+    -> ErrT -- err
 -- beltKWPWrap'cptr = undefined
 foreign import ccall "beltKWPUnwrap"
   beltKWPUnwrap'cptr 
-    :: Ptr CUChar -- ky [sizeof eky - 16]
-    -> Ptr CUChar -- eky
-    -> CSize -- sizeof eky >= 32
-    -> Ptr CUChar -- hdr [16]
-    -> Ptr CUChar -- kek [16,24,32]
-    -> CSize -- sizeof kek
-    -> CUInt -- err
+    :: PCOctet -- ky [sizeof eky - 16]
+    -> PCOctet -- eky
+    -> SizeT -- sizeof eky >= 32
+    -> PCOctet -- hdr [16]
+    -> PCOctet -- kek [16,24,32]
+    -> SizeT -- sizeof kek
+    -> ErrT -- err
 
 
-type SizeT = Int
-type Password = BS.ByteString
-type Salt = BS.ByteString
-type Key = BS.ByteString -- >= 16
-type EKey = BS.ByteString -- sizeof key + 16
-type Header = BS.ByteString -- 16
+type Password = Octets
+type Salt = Octets
+type Key = Octets -- >= 16
+type EKey = Octets -- sizeof key + 16
+type Header = Octets -- 16
 type Kek = Key -- 32
 
-unsafeUseAsCStringLen'
-  :: BS.ByteString
-  -> (Ptr CUChar -> CSize -> IO a)
-  -> IO a
-unsafeUseAsCStringLen' bs f =
-  BS.unsafeUseAsCStringLen bs $ \(p,s) -> f (castPtr p) (fromIntegral s)
 
-unsafeCreate'
-  :: Int
-  -> (Ptr CUChar -> IO ErrT)
-  -> BS.ByteString
-unsafeCreate' n f = bs where
-  bs = BS.unsafeCreateUptoN n $ \p -> do
-    err <- f (castPtr p)
-    case err of
-      0 -> return n
-      _ -> error $ "unsafeCreate' error: " ++ show err
-
-tryUnsafeCreate'
-  :: ErrT
-  -> Int
-  -> (Ptr CUChar -> IO ErrT)
-  -> Maybe BS.ByteString
-tryUnsafeCreate' e'nothing n f = if n == BS.length bs then Just bs else Nothing where
-  bs = BS.unsafeCreateUptoN n $ \p -> do
-    err <- f (castPtr p)
-    case err of
-      0 -> return n
-      _ | err == e'nothing -> return 0
-        | otherwise -> error $ "tryUnsafeCreate' error: " ++ show err
-
-
-beltPBKDF'bs :: Password -> SizeT -> Salt -> Kek
+beltPBKDF'bs :: Password -> Size -> Salt -> Kek
 beltPBKDF'bs pwd iter salt = theta where
   citer = fromIntegral iter
   theta = 
@@ -126,11 +61,11 @@ beltPBKDF'bs pwd iter salt = theta where
 
 beltKWPWrap'bs :: Header -> Kek -> Key -> EKey
 beltKWPWrap'bs hdr kek ky
-  | BS.length hdr /= 16 = error "beltKWPWrap invalid hdr size (must be 16)"
-  | BS.length kek /= 32 = error "beltKWPWrap invalid kek size (must be 32)"
-  | BS.length ky < 16 = error "beltKWPWrap ky size too small (must not be less than 16)"
+  | getSize hdr /= 16 = error "beltKWPWrap invalid hdr size (must be 16)"
+  | getSize kek /= 32 = error "beltKWPWrap invalid kek size (must be 32)"
+  | getSize ky < 16 = error "beltKWPWrap ky size too small (must not be less than 16)"
   | otherwise = 
-      unsafeCreate' (BS.length ky + 16) $ \peky ->
+      unsafeCreate' (getSize ky + 16) $ \peky ->
       unsafeUseAsCStringLen' hdr $ \phdr shdr ->
       unsafeUseAsCStringLen' kek $ \pkek skek ->
       unsafeUseAsCStringLen' ky $ \pky sky ->
@@ -138,11 +73,11 @@ beltKWPWrap'bs hdr kek ky
 
 beltKWPUnwrap'bs :: Header -> Kek -> EKey -> Maybe Key
 beltKWPUnwrap'bs hdr kek eky
-  | BS.length hdr /= 16 = error "beltKWPUnwrap invalid hdr size (must be 16)"
-  | BS.length kek /= 32 = error "beltKWPUnwrap invalid kek size (must be 32)"
-  | BS.length eky < 32 = error "beltKWPUnwrap eky size too small (must not be less than 32)"
+  | getSize hdr /= 16 = error "beltKWPUnwrap invalid hdr size (must be 16)"
+  | getSize kek /= 32 = error "beltKWPUnwrap invalid kek size (must be 32)"
+  | getSize eky < 32 = error "beltKWPUnwrap eky size too small (must not be less than 32)"
   | otherwise =
-      tryUnsafeCreate' eBadToken (BS.length eky - 16) $ \pky ->
+      tryUnsafeCreate' eBadToken (getSize eky - 16) $ \pky ->
       unsafeUseAsCStringLen' hdr $ \phdr shdr ->
       unsafeUseAsCStringLen' kek $ \pkek skek ->
       unsafeUseAsCStringLen' eky $ \peky seky ->
@@ -150,20 +85,13 @@ beltKWPUnwrap'bs hdr kek eky
       where eBadToken = 410 -- ERR_BAD_KEYTOKEN
 
 hdr0 :: Header
-hdr0 = BS.replicate 16 0
-
-
-bs2hex :: BS.ByteString -> String
-bs2hex = BS.unpack . BS.encode
-
-hex2bs :: String -> BS.ByteString
-hex2bs = fst . BS.decode . BS.pack . filter isHexDigit
+hdr0 = repOctet 16 0
 
 test'b
   :: Eq s
   => (s -> String)
   -> (String -> s)
-  -> (s -> SizeT -> s -> s)
+  -> (s -> Size -> s -> s)
   -> (s -> s -> s -> s)
   -> Bool
 test'b s2hex hex2s pbkdf wrap =
