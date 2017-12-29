@@ -1,7 +1,7 @@
 module Bee2.Crypto.Belt
   ( Password, Salt, Key, EKey, Header, Kek
   , beltPBKDF'bs, beltKWPWrap'bs, beltKWPUnwrap'bs, hdr0
-  , hbelt_oid
+  , beltHash'bs, hbelt_oid
   ) where
 
 import Bee2.Defs
@@ -22,7 +22,6 @@ foreign import ccall "beltPBKDF"
     -> PCOctet -- salt
     -> SizeT -- sizeof salt
     -> ErrT -- err
--- beltPBKDF'cptr = undefined
 
 -- bee2/crypto/belt.h 
 foreign import ccall "beltKWPWrap"
@@ -34,7 +33,6 @@ foreign import ccall "beltKWPWrap"
     -> PCOctet -- kek [16,24,32]
     -> SizeT -- sizeof kek
     -> ErrT -- err
--- beltKWPWrap'cptr = undefined
 foreign import ccall "beltKWPUnwrap"
   beltKWPUnwrap'cptr 
     :: PCOctet -- ky [sizeof eky - 16]
@@ -44,6 +42,12 @@ foreign import ccall "beltKWPUnwrap"
     -> PCOctet -- kek [16,24,32]
     -> SizeT -- sizeof kek
     -> ErrT -- err
+foreign import ccall "beltHash"
+  beltHash'cptr
+    :: POctet -- hash [32]
+    -> PCOctet -- const void *src
+    -> SizeT -- count
+    -> ErrT
 
 
 type Password = Octets
@@ -52,6 +56,8 @@ type Key = Octets -- >= 16
 type EKey = Octets -- sizeof key + 16
 type Header = Octets -- 16
 type Kek = Key -- 32
+type Data = Octets -- data to hash, plain text ...
+type Hash = Octets -- 32
 
 hbelt_oid = BS.pack $ 6: fromIntegral (length oid) : oid where
   oid = [42,112,0,2,0,34,101,31,81]
@@ -90,6 +96,13 @@ beltKWPUnwrap'bs hdr kek eky
       unsafeUseAsCStringLen' eky $ \peky seky ->
       return $! beltKWPUnwrap'cptr pky peky seky phdr pkek skek
       where eBadToken = 410 -- ERR_BAD_KEYTOKEN
+
+beltHash'bs :: Data -> Hash
+beltHash'bs d =
+  unsafeCreate' 32 $ \phash ->
+  unsafeUseAsCStringLen' d $ \pd sd ->
+  return $! beltHash'cptr phash pd sd
+
 
 hdr0 :: Header
 hdr0 = repOctet 16 0
