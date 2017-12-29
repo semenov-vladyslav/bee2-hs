@@ -1,5 +1,5 @@
 name:                bee2
-version:             0.1.1.0
+version:             0.1.1.1
 synopsis:            Initial project template from stack
 description:         Please see README.md
 homepage:            https://github.com/githubuser/bee2#readme
@@ -15,8 +15,7 @@ cabal-version:       >=1.10
 
 library
   hs-source-dirs:      src
-  exposed-modules:     Lib
-                     , Bee2.Defs
+  exposed-modules:     Bee2.Defs
                      , Bee2.Foreign
                      , Bee2.Crypto.Belt
                      , Bee2.Crypto.Bash
