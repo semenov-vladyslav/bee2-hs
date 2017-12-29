@@ -33,12 +33,28 @@ import System.IO.Unsafe
 -- size: 4+64+64+64+64+64+8
 bignKeep = 4+64+64+64+64+64+8
 type PBignParams = Ptr () -- void * -> bign_param *
+type PCBignParams = Ptr () -- void * -> bign_param const *
 
 foreign import ccall "bignStdParams"
   bignStdParams'cptr
     :: PBignParams -- bign_params *params
     -> PCChar -- char const *name
     -> ErrT -- err
+
+foreign import ccall "bignCalcPubkey_deep"
+  bignCalcPubkey_deep
+    :: SizeT -- n
+    -> SizeT -- f_deep
+    -> SizeT -- ec_d
+    -> SizeT -- ec_deep
+    -> SizeT
+
+foreign import ccall "bignCalcPubkey"
+  bignCalcPubkey'cptr
+    :: POctet -- pubkey
+    -> PCBignParams -- params
+    -> PCOctet -- privkey
+    -> ErrT
 
 foreign import ccall "bignGenKeypair"
   bignGenKeypair'cptr
@@ -125,6 +141,16 @@ bignGenKeypair l key iv =
       unsafeUseAsCStringLen' (bignStd l) $ \pparams sparams ->
       return $! bignGenKeypair'cptr ppriv ppub pparams rng rng_state
 -}
+
+bignCalcPubkey'bs :: Word -> PrivKey -> PubKey
+bignCalcPubkey'bs l priv
+  | l /= 128 && l /= 192 && l /= 256 = error "bignCalcPubkey invalid l (must be [128,192,256]"
+  | getSize priv /= fromIntegral (l `div` 4) = error "bignCalcPubkey invalid priv size (must be [32,48,64])"
+  | otherwise = 
+      unsafeCreate' (fromIntegral (l `div` 2)) $ \ppub ->
+      unsafeUseAsCStringLen' (bignStd l) $ \pparams sparams ->
+      unsafeUseAsCStringLen' priv $ \ppriv spriv ->
+      return $! bignCalcPubkey'cptr ppub (castPtr pparams) ppriv
 
 bignSign2'bs :: Word -> PrivKey -> HashOid -> HashValue -> SigValue
 bignSign2'bs l priv oid hash
