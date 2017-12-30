@@ -2,13 +2,13 @@ name:                bee2
 version:             0.1.1.1
 synopsis:            Initial project template from stack
 description:         Please see README.md
-homepage:            https://github.com/githubuser/bee2#readme
-license:             BSD3
+homepage:            https://github.com/semenov-vladyslav/bee2-hs
+license:             MIT
 license-file:        LICENSE
-author:              Author name here
-maintainer:          example@example.com
-copyright:           2016 Author name here
-category:            Web
+author:              Vlad Semenov
+maintainer:          semenov.vlad.by@gmail.com
+copyright:           2017 Vlad Semenov
+category:            Crypto
 build-type:          Simple
 -- extra-source-files:
 cabal-version:       >=1.10
