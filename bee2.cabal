@@ -32,8 +32,8 @@ library
 --                     , inline-c >= 0.5
 --  c-sources:           src/Lib.c
   cc-options:          -Wall -O2
-  include-dirs: C:/usr/dev/bee2/include
-  extra-lib-dirs: C:/usr/dev/bee2/_build_ghc/src
+  -- include-dirs: C:/usr/dev/bee2/include
+  -- extra-lib-dirs: C:/usr/dev/bee2/_build_ghc/src
   extra-libraries:     bee2_static
   default-language:    Haskell2010
 
